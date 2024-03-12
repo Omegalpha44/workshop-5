@@ -1,46 +1,91 @@
 import bodyParser from "body-parser";
 import express from "express";
 import { BASE_NODE_PORT } from "../config";
-import { Value } from "../types";
+import { Value, NodeState } from "../types";
 
 export async function node(
-  nodeId: number, // the ID of the node
-  N: number, // total number of nodes in the network
-  F: number, // number of faulty nodes in the network
-  initialValue: Value, // initial value of the node
-  isFaulty: boolean, // true if the node is faulty, false otherwise
-  nodesAreReady: () => boolean, // used to know if all nodes are ready to receive requests
-  setNodeIsReady: (index: number) => void // this should be called when the node is started and ready to receive requests
+  nodeId: number,
+  N: number,
+  F: number,
+  initialValue: Value,
+  isFaulty: boolean,
+  answers: Value[],
+  nodesAreReady: () => boolean,
+  setNodeIsReady: (index: number) => void
+  
 ) {
   const node = express();
   node.use(express.json());
   node.use(bodyParser.json());
 
-  // TODO implement this
-  // this route allows retrieving the current status of the node
-  // node.get("/status", (req, res) => {});
+  let state: Value = initialValue;
+  let decided = false;
 
-  // TODO implement this
-  // this route allows the node to receive messages from other nodes
-  // node.post("/message", (req, res) => {});
+  node.get("/status", (req, res) => {
+    if (isFaulty) {
+      res.status(500).send("faulty");
+    } else {
+      res.status(200).send("live");
+    }
+  });
 
-  // TODO implement this
-  // this route is used to start the consensus algorithm
-  // node.get("/start", async (req, res) => {});
+  node.post("/message", (req, res) => {
+    answers.push(req.body.value); // we stock the value in the array
+  });
 
-  // TODO implement this
-  // this route is used to stop the consensus algorithm
-  // node.get("/stop", async (req, res) => {});
+  node.get("/start", async (req, res) => {
+    if (!isFaulty && nodesAreReady()) {
+      // TODO: implement the consensus algorithm
 
-  // TODO implement this
-  // get the current state of a node
-  // node.get("/getState", (req, res) => {});
+      // phase 1 : broadcast
+      // we broadcast the initial value to all nodes
+       for (let index = 0; index < N; index++) {
+        if (index !== nodeId) {
+          fetch(`http://localhost:${BASE_NODE_PORT + index}/message`, {
+            method: "POST",
+            body: JSON.stringify({ value: initialValue }),
+            headers: { "Content-Type": "application/json" },
+          });
+        }}
+      // phase 2 : decide
+      // we decide the value
+      state = initialValue;
 
-  // start the server
+      
+
+
+
+      res.status(200).send("started");
+    } else {
+      res.status(500).send("not ready");
+    }
+  });
+
+  node.get("/stop", async (req, res) => {
+    // TODO: stop the consensus algorithm
+
+    res.status(200).send("stopped");
+  });
+
+  node.get("/getState", (req, res) => {
+    const nodeState: NodeState = {
+      killed: false,
+      x: state,
+      decided,
+      k: null
+    };
+
+    if (isFaulty) {
+      nodeState.x = null;
+      nodeState.decided = null;
+      nodeState.k = null;
+    }
+
+    res.status(200).json(nodeState);
+  });
+
   const server = node.listen(BASE_NODE_PORT + nodeId, async () => {
-    console.log(
-      `Node ${nodeId} is listening on port ${BASE_NODE_PORT + nodeId}`
-    );
+    console.log(`Node ${nodeId} is listening on port ${BASE_NODE_PORT + nodeId}`);
 
     // the node is ready
     setNodeIsReady(nodeId);
@@ -48,3 +93,4 @@ export async function node(
 
   return server;
 }
+
