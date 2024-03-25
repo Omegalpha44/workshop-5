@@ -30,7 +30,7 @@ You should have Node installed at a version superior to v18.
 There are two ways to achieve this.
 
 1. Run the unit tests with the command `yarn test` and see how your implementation performs against the given tests
-2. Modify the `start.ts` file with the parameters you'd like, launch the network manually with `yarn start` and see the results
+ 2. Modify the `start.ts` file with the parameters you'd like, launch the network manually with `yarn start` and see the results
 
 ## Implementing the Ben-Or algorithm
 

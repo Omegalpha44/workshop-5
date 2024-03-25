@@ -43,61 +43,48 @@ export async function node(
   node.get("/start", async (req, res) => {
     res.status(200).send("started");
     while(!decided){
-    if (!isFaulty && nodesAreReady()) {
-      // TODO: implement the consensus algorithm
+      if (!isFaulty && nodesAreReady()) {
+        // phase 1 : broadcast
+        // we broadcast the value to all nodes
+        for (let ind = 0; ind < N; ind++) {
+          if (ind !== nodeId) {
+            fetch(`http://localhost:${BASE_NODE_PORT + ind}/message`, {
+              method: "POST",
+              body: JSON.stringify({ value: state }),
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          console.log(`Node ${nodeId} broadcasted a message:`, state);
+        }
+          
+        // phase 2: decide
+// check if any value has occurred more than F times
+const counts = new Map<Value, number>();
+answers.forEach((value) => {
+  if (value !== null) {
+    const count = counts.get(value) || 0;
+    counts.set(value, count + 1);
+  }
+});
+let decidedValue: Value | null = null;
+counts.forEach((count, value) => {
+  if (count > F) {
+    decidedValue = value;
+  }
+});
+if (decidedValue !== null) {
+  // if a value has occurred more than F times, the node decides on that value
+  state = decidedValue;
+  decided = true;
+  console.log(`Node ${nodeId} decided on value:`, decidedValue);
+} else {
+  // if no value has occurred more than F times, the node does not decide and waits for the next round
+  console.log(`Node ${nodeId} did not decide, waiting for the next round.`);
+}
 
-      // phase 1 : broadcast
-      // we broadcast the value to all nodes
-       for (let ind = 0; ind < N; ind++) {
-        if (ind !== nodeId) {
-          fetch(`http://localhost:${BASE_NODE_PORT + ind}/message`, {
-            method: "POST",
-            body: JSON.stringify({ value: state }),
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-        console.log(`Node ${nodeId} broadcasted a message:`, state);
       }
-        
-       // phase 2: decide
-       // check if any value has occurred more than F times
-      const counts = new Map<Value, number>();
-      answers.forEach((value) => {
-        if (value !== null) {
-          const count = counts.get(value) || 0;
-          counts.set(value, count + 1);
-        }
-      });
-      let decidedValue: Value | null = null;
-      counts.forEach((count, value) => {
-        if (count > F) {
-          decidedValue = value;
-        }
-      });
-      if (decidedValue !== null) {
-        state = decidedValue;
-        decided = true;
-        console.log(`Node ${nodeId} decided on value:`, decidedValue);
-      }
-      // if no value has occurred more than F times, the node decides on its initial value
-      else {
-      //the new value is randomly chosen
-        if (Math.random() > 0.5) {
-          state = 1;
-        }
-        else {
-          state = 0;
-        }
-      }
-    }
-    else
-    {
-      console.log(`Node ${nodeId} is not ready`);
-      decided = true;
-    }
   }
-  }
-  );
+  });
 
   node.get("/stop", async (req, res) => {
     // TODO: stop the consensus algorithm
