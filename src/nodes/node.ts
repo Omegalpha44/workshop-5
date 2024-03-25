@@ -58,34 +58,45 @@ export async function node(
         }
           
         // phase 2: decide
-// check if any value has occurred more than F times
-const counts = new Map<Value, number>();
-answers.forEach((value) => {
-  if (value !== null) {
-    const count = counts.get(value) || 0;
-    counts.set(value, count + 1);
-  }
-});
-let decidedValue: Value | null = null;
-counts.forEach((count, value) => {
-  if (count > F) {
-    decidedValue = value;
-  }
-});
-if (decidedValue !== null) {
-  // if a value has occurred more than F times, the node decides on that value
-  state = decidedValue;
-  decided = true;
-  console.log(`Node ${nodeId} decided on value:`, decidedValue);
-} else {
-  // if no value has occurred more than F times, the node does not decide and waits for the next round
-  console.log(`Node ${nodeId} did not decide, waiting for the next round.`);
-}
+        // check if any value has occurred more than F times
+        const counts = new Map<Value, number>();
+
+        // get the status of each node
+        const statusChecks = answers.map((value, index) => {
+          return fetch(`http://localhost:${BASE_NODE_PORT+ index}/status`)
+            .then(res => res.text())
+            .then(status => {
+              if (status === 'live' && value !== null) {
+                const count = counts.get(value) || 0;
+                counts.set(value, count + 1);
+              }
+            });
+        });
+
+        Promise.all(statusChecks).then(() => {
+          let decidedValue: Value | null = null;
+          counts.forEach((count, value) => {
+            if (count > F) {
+              decidedValue = value;
+            }
+          });
+          if (decidedValue !== null) {
+            // if a value has occurred more than F times, the node decides on that value
+            state = decidedValue;
+            decided = true;
+            console.log(`Node ${nodeId} decided on value:`, decidedValue);
+          } else {
+            // if no value has occurred more than F times, the node does not decide and waits for the next round
+            console.log(`Node ${nodeId} did not decide, waiting for the next round.`);
+          }
+          // reset state for next round
+          answers = new Array(N).fill(null);
+          i = 0;
+        });
 
       }
-  }
+    }
   });
-
   node.get("/stop", async (req, res) => {
     // TODO: stop the consensus algorithm
     decided = true;
