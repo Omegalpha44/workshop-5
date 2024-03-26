@@ -5,9 +5,9 @@ import { delay } from "./utils";
 
 async function main() {
   const faultyArray = [
-    true,
-    true,
-    true,
+    false,
+    false,
+    false,
     true,
     false,
     false,
